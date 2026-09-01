@@ -2,13 +2,13 @@ from contextlib import asynccontextmanager
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 import sys
+import logging
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import joblib
-import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -24,9 +24,13 @@ from src.config import (
 )
 from src.explain import compute_instance_explanations
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("churn-api")
 
-# In-memory artifact holder
+
 class ArtifactStore:
+    """Thread-safe in-memory cache for ML models and SHAP explainers."""
     def __init__(self):
         self.classifier_bundle: Optional[Dict[str, Any]] = None
         self.explainer: Optional[Any] = None
@@ -38,8 +42,8 @@ class ArtifactStore:
     def load(self, classifier_path: Path = CLASSIFIER_PATH, explainer_path: Path = EXPLAINER_PATH):
         if not classifier_path.exists() or not explainer_path.exists():
             raise FileNotFoundError(
-                f"Modelli non trovati. Assicurati che esistano {classifier_path} e {explainer_path}. "
-                "Esegui prima `python src/train.py`."
+                f"Model artifacts not found at {classifier_path} and {explainer_path}. "
+                "Please run `python src/train.py` first."
             )
         self.classifier_bundle = joblib.load(classifier_path)
         self.explainer = joblib.load(explainer_path)
@@ -50,53 +54,55 @@ artifacts = ArtifactStore()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Load ML & xAI models
+    """Application lifespan manager to handle startup artifact loading and graceful shutdown."""
     try:
         artifacts.load()
-        print("Artefatti ML e Explainer SHAP caricati con successo.")
+        logger.info("Machine learning model and SHAP explainer loaded successfully.")
     except Exception as e:
-        print(f"ATTENZIONE: Impossibile caricare gli artefatti all'avvio: {e}")
+        logger.warning(f"Unable to load artifacts during startup: {e}")
     yield
-    # Shutdown logic (if any)
 
 
 app = FastAPI(
-    title="Explainable Churn Prediction API",
+    title="Explainable Customer Retention & Churn API",
     version="1.0.0",
-    description="Microservizio ML end-to-end per la predizione del churn con Explainable AI (SHAP TreeExplainer).",
+    description=(
+        "Production-grade Machine Learning microservice for customer churn prediction "
+        "with local feature attribution powered by SHAP TreeExplainer."
+    ),
     lifespan=lifespan,
 )
 
 
-# --- Pydantic Schemas ---
+# --- Pydantic Data Contracts ---
 
 class CustomerFeatures(BaseModel):
     tenure_months: int = Field(
         ...,
         ge=0,
-        description="Mesi di permanenza del cliente con il servizio",
+        description="Customer account tenure in months",
         examples=[12],
     )
     monthly_charges: float = Field(
         ...,
         ge=0.0,
-        description="Spesa mensile del cliente in EUR/USD",
+        description="Monthly subscription charge in USD/EUR",
         examples=[75.50],
     )
     total_tickets: int = Field(
         ...,
         ge=0,
-        description="Numero totale di ticket di supporto aperti",
+        description="Total customer support tickets opened to date",
         examples=[3],
     )
     contract_type: str = Field(
         ...,
-        description="Tipo di contratto (es. 'month-to-month', 'one-year', 'two-year')",
+        description="Subscription contract tier ('month-to-month', 'one-year', 'two-year')",
         examples=["month-to-month"],
     )
     payment_method: str = Field(
         ...,
-        description="Metodo di pagamento (es. 'electronic_check', 'bank_transfer', 'credit_card')",
+        description="Active billing method ('electronic_check', 'bank_transfer', 'credit_card')",
         examples=["electronic_check"],
     )
 
@@ -105,7 +111,7 @@ class CustomerFeatures(BaseModel):
     def validate_contract(cls, v: str) -> str:
         clean_v = v.strip().lower()
         if clean_v not in CONTRACT_TYPES:
-            raise ValueError(f"contract_type deve essere uno tra: {CONTRACT_TYPES}")
+            raise ValueError(f"contract_type must be one of: {CONTRACT_TYPES}")
         return clean_v
 
     @field_validator("payment_method")
@@ -113,36 +119,37 @@ class CustomerFeatures(BaseModel):
     def validate_payment(cls, v: str) -> str:
         clean_v = v.strip().lower()
         if clean_v not in PAYMENT_METHODS:
-            raise ValueError(f"payment_method deve essere uno tra: {PAYMENT_METHODS}")
+            raise ValueError(f"payment_method must be one of: {PAYMENT_METHODS}")
         return clean_v
 
 
 class FeatureImpact(BaseModel):
-    feature: str = Field(..., description="Nome della feature trasformata")
-    impact_score: float = Field(..., description="SHAP value (impatto locale)")
-    description: str = Field(..., description="Spiegazione qualitativa dell'impatto")
+    feature: str = Field(..., description="Name of the transformed feature")
+    impact_score: float = Field(..., description="SHAP local attribution score")
+    description: str = Field(..., description="Human-readable business interpretation of the impact")
 
 
 class PredictionResponse(BaseModel):
-    churn_risk_score: float = Field(..., description="Probabilità predetta di churn (0.0 - 1.0)")
-    will_churn: bool = Field(..., description="Predizione binaria (True se rischio >= soglia)")
-    risk_level: str = Field(..., description="Livello di rischio categorico ('Basso', 'Medio', 'Alto')")
+    churn_risk_score: float = Field(..., description="Predicted churn probability between 0.0 and 1.0")
+    will_churn: bool = Field(..., description="Binary classification outcome based on decision threshold")
+    risk_level: str = Field(..., description="Categorical risk tier: 'Low', 'Medium', or 'High'")
     top_churn_drivers: List[FeatureImpact] = Field(
-        ..., description="Top feature con il maggiore impatto positivo/negativo sul punteggio"
+        ..., description="Top feature drivers ranked by absolute contribution to the churn score"
     )
 
 
 class HealthResponse(BaseModel):
-    status: str
-    service: str
-    version: str
-    model_loaded: bool
+    status: str = Field(..., description="Service health status ('ok' or 'degraded')")
+    service: str = Field(..., description="Service identifier name")
+    version: str = Field(..., description="Service version")
+    model_loaded: bool = Field(..., description="Indicates if ML models are loaded and ready for inference")
 
 
 # --- API Routes ---
 
-@app.get("/", summary="Root Info")
+@app.get("/", summary="Root Metadata")
 def root_info():
+    """Returns basic service information and documentation link."""
     return {
         "service": "Explainable Customer Retention & Churn API",
         "status": "online",
@@ -153,6 +160,7 @@ def root_info():
 
 @app.get("/health", response_model=HealthResponse, summary="Health Check")
 def health():
+    """Healthcheck endpoint for orchestrators (Dokploy, Docker, Kubernetes)."""
     return {
         "status": "ok" if artifacts.is_loaded else "degraded",
         "service": "explainable-churn-api",
@@ -163,28 +171,31 @@ def health():
 
 @app.post("/predict", response_model=PredictionResponse, summary="Predict Churn & Explain")
 def predict_and_explain(customer: CustomerFeatures):
+    """
+    Computes churn probability and provides local SHAP explanations for the customer profile.
+    """
     if not artifacts.is_loaded:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Artefatti ML non caricati. Eseguire prima il training.",
+            detail="Model artifacts are not loaded. Please run the training pipeline first.",
         )
 
-    # Convert customer data to DataFrame
+    # Convert customer input to DataFrame for transformer pipeline
     input_dict = customer.model_dump()
     input_df = pd.DataFrame([input_dict])
 
     try:
-        # Preprocessing
         preprocessor = artifacts.classifier_bundle["preprocessor"]
         model = artifacts.classifier_bundle["model"]
         feature_names = artifacts.classifier_bundle["feature_names"]
 
+        # Feature transformation
         X_trans = preprocessor.transform(input_df)
 
-        # Predict probability
+        # Model inference (probability of churn)
         proba = float(model.predict_proba(X_trans)[0, 1])
 
-        # Compute SHAP explanations
+        # Compute instance-level SHAP values
         top_drivers = compute_instance_explanations(
             explainer=artifacts.explainer,
             transformed_features=X_trans,
@@ -192,13 +203,13 @@ def predict_and_explain(customer: CustomerFeatures):
             top_k=3,
         )
 
-        # Risk level determination
+        # Determine risk tier
         if proba >= HIGH_RISK_THRESHOLD:
-            risk_level = "Alto"
+            risk_level = "High"
         elif proba >= MEDIUM_RISK_THRESHOLD:
-            risk_level = "Medio"
+            risk_level = "Medium"
         else:
-            risk_level = "Basso"
+            risk_level = "Low"
 
         return {
             "churn_risk_score": round(proba, 4),
@@ -208,7 +219,8 @@ def predict_and_explain(customer: CustomerFeatures):
         }
 
     except Exception as e:
+        logger.error(f"Inference error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Errore durante l'inferenza o il calcolo SHAP: {str(e)}",
+            detail=f"Error occurred during inference or SHAP computation: {str(e)}",
         )

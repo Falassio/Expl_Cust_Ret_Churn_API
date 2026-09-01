@@ -39,12 +39,12 @@ def train_and_evaluate(
     5. Builds SHAP TreeExplainer
     6. Serializes artifacts to disk
     """
-    print("1. Caricamento / generazione dati...")
+    print("1. Loading / generating dataset...")
     df = load_or_generate_data(DATASET_PATH)
-    print(f"   Dataset caricato: {df.shape[0]} righe, {df.shape[1]} colonne.")
-    print(f"   Distribuzione Churn: {df['churn'].value_counts(normalize=True).to_dict()}")
+    print(f"   Dataset shape: {df.shape[0]} rows, {df.shape[1]} columns.")
+    print(f"   Churn distribution: {df['churn'].value_counts(normalize=True).to_dict()}")
 
-    print("2. Split Train/Test e Pre-processing...")
+    print("2. Splitting Train/Test & Preprocessing...")
     X_train, X_test, y_train, y_test = prepare_data_splits(
         df, test_size=0.2, random_state=random_state
     )
@@ -53,9 +53,9 @@ def train_and_evaluate(
     X_train_trans = preprocessor.fit_transform(X_train)
     X_test_trans = preprocessor.transform(X_test)
     feature_names = extract_feature_names(preprocessor)
-    print(f"   Features trasformate ({len(feature_names)}): {feature_names}")
+    print(f"   Transformed features ({len(feature_names)}): {feature_names}")
 
-    print("3. Addestramento LightGBM Classifier...")
+    print("3. Training LightGBM Classifier...")
     clf = lgb.LGBMClassifier(
         n_estimators=150,
         learning_rate=0.05,
@@ -65,7 +65,7 @@ def train_and_evaluate(
     )
     clf.fit(X_train_trans, y_train)
 
-    print("4. Valutazione Modello...")
+    print("4. Evaluating Model Performance...")
     y_pred_proba = clf.predict_proba(X_test_trans)[:, 1]
     y_pred = clf.predict(X_test_trans)
 
@@ -73,12 +73,12 @@ def train_and_evaluate(
     acc_score = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred, output_dict=True)
 
-    print("   --- Performance Report ---")
+    print("   --- Model Performance Metrics ---")
     print(f"   ROC-AUC: {auc_score:.4f}")
     print(f"   Accuracy: {acc_score:.4f}")
     print(classification_report(y_test, y_pred))
 
-    print("5. Inizializzazione SHAP TreeExplainer...")
+    print("5. Initializing SHAP TreeExplainer...")
     explainer = shap.TreeExplainer(clf)
 
     if save_artifacts:
@@ -94,7 +94,7 @@ def train_and_evaluate(
         }
         joblib.dump(classifier_data, CLASSIFIER_PATH)
         joblib.dump(explainer, EXPLAINER_PATH)
-        print(f"   Artefatti salvati correttamente in:\n   - {CLASSIFIER_PATH}\n   - {EXPLAINER_PATH}")
+        print(f"   Artifacts successfully persisted to:\n   - {CLASSIFIER_PATH}\n   - {EXPLAINER_PATH}")
 
     return {
         "model": clf,

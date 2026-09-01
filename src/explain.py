@@ -26,7 +26,7 @@ def compute_instance_explanations(
             # Shape (n_samples, n_features) - log-odds or margin output
             class_1_shap = shap_vals
     else:
-        raise ValueError(f"Formato SHAP non supportato: {type(shap_vals)}")
+        raise ValueError(f"Unsupported SHAP output format: {type(shap_vals)}")
 
     # Extract vector for the single instance
     instance_shap = class_1_shap[0]
@@ -35,9 +35,9 @@ def compute_instance_explanations(
     for feat_name, val in zip(feature_names, instance_shap):
         val_float = float(val)
         desc = (
-            "Aumenta il rischio di abbandono"
+            "Increases churn risk"
             if val_float > 0
-            else "Fattore di fidelizzazione"
+            else "Supports customer retention"
         )
         impacts.append(
             {
