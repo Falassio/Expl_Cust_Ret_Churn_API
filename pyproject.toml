@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "explainable-churn-api"
+version = "1.0.0"
+description = "Production Explainable AI Customer Churn Prediction Engine with SHAP and FastAPI"
+readme = "README.md"
+authors = [{ name = "Alessio Falanga", email = "ciao@alessiofalanga.it" }]
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "F841", "E402", "F401", "E722", "W291", "W292", "W293"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"

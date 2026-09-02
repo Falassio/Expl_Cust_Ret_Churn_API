@@ -1,51 +1,93 @@
 # Explainable Customer Retention & Churn API (xAI)
 
-[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![LightGBM](https://img.shields.io/badge/LightGBM-4.7%2B-brightgreen.svg)](https://lightgbm.readthedocs.io/)
-[![SHAP](https://img.shields.io/badge/SHAP-Explainable%20AI-ff69b4.svg)](https://shap.readthedocs.io/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-churn--api.alessiofalanga.it-success?style=flat-square&logo=fastapi)](https://churn-api.alessiofalanga.it/)
+[![Interactive Docs](https://img.shields.io/badge/Swagger%20UI-API%20Docs-blue?style=flat-square&logo=swagger)](https://churn-api.alessiofalanga.it/docs)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LightGBM](https://img.shields.io/badge/LightGBM-4.7%2B-brightgreen.svg?style=flat-square)](https://lightgbm.readthedocs.io/)
+[![SHAP](https://img.shields.io/badge/SHAP-Explainable%20AI-ff69b4.svg?style=flat-square)](https://shap.readthedocs.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-An end-to-end, production-ready Machine Learning microservice that predicts customer churn risk and delivers **real-time local explainability (xAI)** using **SHAP TreeExplainer**.
+Production-grade Machine Learning microservice that predicts customer churn probability and returns **real-time local explainability (xAI)** using **SHAP TreeExplainer**.
 
-Instead of returning an opaque churn probability score, this service breaks down *why* a customer is at risk—empowering Customer Success and Growth teams with actionable, feature-level drivers for retention intervention.
+Rather than outputting a black-box churn score, the service decomposes prediction drivers into exact feature contributions—giving Customer Success and Growth teams actionable insights to design tailored retention strategies.
 
----
-
-## 🎯 Key Highlights
-
-- **Actionable Explainability (xAI)**: Integrates `shap.TreeExplainer` directly into the inference pipeline, computing exact Shapley contributions per feature in under 10ms.
-- **Leakage-Free Preprocessing**: Scikit-learn `ColumnTransformer` bundling numerical standard scaling and categorical one-hot encoding into serialized artifacts.
-- **High-Performance Classifier**: Gradient-boosted decision trees via `LightGBM` achieving **0.836+ ROC-AUC** on stratified validation sets.
-- **Modern REST API**: Built on **FastAPI** and **Pydantic v2**, featuring strict schema validation, asynchronous lifespan management, and automated OpenAPI Swagger documentation.
-- **Production & Cloud Ready**: Multi-platform `Dockerfile` with OpenMP acceleration (`libgomp1`), built-in health checks (`/health`), and seamless deployment on **Dokploy**, Docker Compose, or Kubernetes.
-- **Thorough Test Suite**: 100% passing test coverage with `pytest` and `TestClient` verifying data generation, feature transformers, model training, and API endpoints.
+🌐 **Live API**: [https://churn-api.alessiofalanga.it/](https://churn-api.alessiofalanga.it/)  
+📖 **API Documentation**: [https://churn-api.alessiofalanga.it/docs](https://churn-api.alessiofalanga.it/docs)
 
 ---
 
-## 🏗️ Architecture & Project Structure
+## 📌 Architecture & System Flow
+
+```
+                      +-----------------------------+
+                      |   Client Request (JSON)     |
+                      +--------------+--------------+
+                                     |
+                                     v
+                        +------------+------------+
+                        |  FastAPI + Pydantic v2  |
+                        +------------+------------+
+                                     |
+                                     v
+                        +------------+------------+
+                        | Leak-Free Preprocessing |
+                        |   (ColumnTransformer)   |
+                        +------------+------------+
+                                     |
+                +--------------------+--------------------+
+                |                                         |
+                v                                         v
+    +-----------+-----------+                 +-----------+-----------+
+    |  LightGBM Classifier  |                 |  SHAP TreeExplainer   |
+    |  (Churn Probability)  |                 |  (Local Attribution)  |
+    +-----------+-----------+                 +-----------+-----------+
+                |                                         |
+                +--------------------+--------------------+
+                                     |
+                                     v
+                      +--------------+--------------+
+                      |  Ranked Risk Drivers & JSON |
+                      |    Explainable Response     |
+                      +-----------------------------+
+```
+
+---
+
+## ⚡ Key Highlights
+
+- **Real-Time Local Explainability (xAI)**: Integrated `shap.TreeExplainer` calculates per-feature Shapley attributions in sub-10ms latency.
+- **Leakage-Free Feature Pipeline**: Scikit-learn `ColumnTransformer` encapsulating standard numerical scaling and one-hot encoding into a unified serialized pipeline.
+- **High-Performance Classifier**: Gradient-boosted decision trees via `LightGBM` achieving **>0.83 ROC-AUC** on stratified validation sets.
+- **Strict Data Contracts**: Built with **FastAPI** and **Pydantic v2**, including schema validation, asynchronous lifecycle management (`lifespan`), and automated Swagger UI documentation.
+- **Containerized & Production Ready**: Multi-platform `Dockerfile` optimized with OpenMP acceleration (`libgomp1`), built-in health monitoring (`/health`), and automated deployment support via **Dokploy** or Docker Compose.
+- **Automated Test Suite**: 100% test coverage with `pytest` and `TestClient` validating synthetic data generation, transformers, training logic, and API endpoints.
+
+---
+
+## 📁 Repository Structure
 
 ```
 Expl_Cust_Ret_Churn_API/
 ├── data/
-│   └── telco_churn.csv              # Synthetic CRM / Telco dataset with realistic patterns
+│   └── telco_churn.csv              # Benchmark CRM / Telco customer dataset
 ├── models/
 │   ├── classifier.joblib            # Serialized Scikit-learn pipeline + LightGBM model
 │   └── explainer.joblib             # Serialized SHAP TreeExplainer instance
 ├── src/
 │   ├── __init__.py
-│   ├── config.py                    # Environment settings, feature schemas, and risk tiers
-│   ├── data_pipeline.py             # Data ingestion, synthetic generator, and ColumnTransformer
-│   ├── explain.py                   # SHAP local attribution and business narrative engine
-│   ├── train.py                     # Training orchestration, evaluation metrics, and model export
-│   └── app.py                       # FastAPI application with Pydantic v2 data contracts
+│   ├── app.py                       # FastAPI application & endpoint definitions
+│   ├── config.py                    # Environment settings, feature schemas, risk thresholds
+│   ├── data_pipeline.py             # Data loading, synthetic generator, ColumnTransformer
+│   ├── explain.py                   # SHAP local attribution and narrative synthesis
+│   └── train.py                     # Training orchestration, metrics evaluation, model export
 ├── tests/
 │   ├── __init__.py
-│   ├── test_pipeline.py             # Unit tests for data pipeline, split, and training logic
-│   └── test_api.py                  # Integration tests for /health, /predict, and validation
+│   ├── test_api.py                  # Integration tests for /health, /predict, edge cases
+│   └── test_pipeline.py             # Unit tests for preprocessing, training, and SHAP output
 ├── Dockerfile                       # Production container with OpenMP & healthcheck
-├── docker-compose.yml               # Local orchestration & deployment config
+├── docker-compose.yml               # Local orchestration config
 ├── requirements.txt                 # Pinned dependencies
 ├── .dockerignore
 ├── .gitignore
@@ -54,29 +96,29 @@ Expl_Cust_Ret_Churn_API/
 
 ---
 
-## 🧠 Machine Learning & Explainability Deep Dive
+## 🧠 Machine Learning & Explainability Details
 
-### 1. Feature Engineering & Preprocessing
-Features are processed through a strictly fitted `ColumnTransformer` to prevent data leakage between training and inference:
-- **Numerical Features** (`tenure_months`, `monthly_charges`, `total_tickets`): Scaled using `StandardScaler`.
+### 1. Data Pipeline & Preprocessing
+Features are processed through a strictly fitted `ColumnTransformer` to prevent data leakage:
+- **Numerical Features** (`tenure_months`, `monthly_charges`, `total_tickets`): Scaled via `StandardScaler`.
 - **Categorical Features** (`contract_type`, `payment_method`): Encoded via `OneHotEncoder(drop='first', handle_unknown='ignore')`.
 
-### 2. Decision Tree Modeling with LightGBM
-The classification engine leverages a tuned `LGBMClassifier` (150 estimators, max depth 5, learning rate 0.05). On hold-out test splits, it delivers balanced precision/recall trade-offs:
-- **ROC-AUC Score**: `0.8364`
-- **Overall Accuracy**: `77.8%`
+### 2. LightGBM Classification Engine
+The classification layer uses a tuned `LGBMClassifier` (150 estimators, max depth 5, learning rate 0.05).
+- **ROC-AUC**: `0.8364`
+- **Balanced Accuracy**: `77.8%`
 
 ### 3. Local Feature Attribution (SHAP)
-For every incoming prediction payload, the API invokes the serialized `TreeExplainer` on the transformed vector. Feature impact scores represent log-odds deviations:
-- **Positive SHAP Value ($>0$)**: Pushes the customer towards churning (e.g., elevated support ticket count, month-to-month contracts).
-- **Negative SHAP Value ($<0$)**: Acts as a retention anchor (e.g., multi-year contract tenure, low dispute frequency).
+For every inference request, the pipeline evaluates the feature vector through the pre-computed `TreeExplainer`:
+- **Positive SHAP Value ($>0$)**: Drives risk higher (e.g., high support ticket frequency, month-to-month contracts).
+- **Negative SHAP Value ($<0$)**: Acts as a retention anchor (e.g., high tenure, annual billing, low dispute rate).
 
 ---
 
-## ⚡ Quickstart & Local Setup
+## 🛠️ Quickstart & Local Setup
 
 ### Prerequisites
-- Python 3.11, 3.12, or 3.13
+- Python 3.11+
 - Git
 
 ### 1. Clone & Setup Environment
@@ -86,12 +128,12 @@ git clone https://github.com/Falassio/Expl_Cust_Ret_Churn_API.git
 cd Expl_Cust_Ret_Churn_API
 
 # Create and activate virtual environment
-python -m venv venv
+python -m venv .venv
 
 # On Linux / macOS:
-source venv/bin/activate
-# On Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
@@ -100,19 +142,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Train the Model & Generate Artifacts
+### 3. Train Model & Export Artifacts
 
 ```bash
 python src/train.py
 ```
-*This will generate the synthetic benchmark data, fit the transformer and LightGBM model, evaluate metrics, and export artifacts into `models/`.*
+*Generates dataset, trains LightGBM classifier, computes SHAP explainer, and exports `.joblib` artifacts to `models/`.*
 
-### 4. Run the API Server
+### 4. Start the API Server
 
 ```bash
 uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
 ```
-Visit **[http://localhost:8000/docs](http://localhost:8000/docs)** to explore interactive Swagger UI.
+Open **[http://localhost:8000/docs](http://localhost:8000/docs)** to test the interactive Swagger documentation.
 
 ---
 
@@ -121,7 +163,11 @@ Visit **[http://localhost:8000/docs](http://localhost:8000/docs)** to explore in
 ### Health Check
 `GET /health`
 
-Verifies that the microservice is healthy and that serialized ML artifacts are loaded in memory.
+Verifies that the service is running and all model artifacts are loaded in memory.
+
+```bash
+curl http://localhost:8000/health
+```
 
 **Response (`200 OK`):**
 ```json
@@ -138,11 +184,12 @@ Verifies that the microservice is healthy and that serialized ML artifacts are l
 ### Predict & Explain Churn
 `POST /predict`
 
-Receives customer profile attributes and computes churn probability along with top 3 local risk drivers.
+Accepts customer attributes and outputs predicted churn probability, risk classification tier, and the top local SHAP drivers.
 
-#### Request Example (High-Risk Customer):
+#### Example: High-Risk Profile
+
 ```bash
-curl -X POST "http://localhost:8000/predict" \
+curl -X POST "https://churn-api.alessiofalanga.it/predict" \
      -H "Content-Type: application/json" \
      -d '{
        "tenure_months": 2,
@@ -153,7 +200,7 @@ curl -X POST "http://localhost:8000/predict" \
      }'
 ```
 
-#### Response Example (`200 OK`):
+**Response (`200 OK`):**
 ```json
 {
   "churn_risk_score": 0.9415,
@@ -179,9 +226,10 @@ curl -X POST "http://localhost:8000/predict" \
 }
 ```
 
-#### Request Example (Loyal, Low-Risk Customer):
+#### Example: Low-Risk / Loyal Profile
+
 ```bash
-curl -X POST "http://localhost:8000/predict" \
+curl -X POST "https://churn-api.alessiofalanga.it/predict" \
      -H "Content-Type: application/json" \
      -d '{
        "tenure_months": 65,
@@ -192,7 +240,7 @@ curl -X POST "http://localhost:8000/predict" \
      }'
 ```
 
-#### Response Example (`200 OK`):
+**Response (`200 OK`):**
 ```json
 {
   "churn_risk_score": 0.0412,
@@ -220,45 +268,55 @@ curl -X POST "http://localhost:8000/predict" \
 
 ---
 
-## 🧪 Testing
+## 🧪 Automated Testing
 
-The repository includes comprehensive automated tests covering data generation, transformations, training pipelines, and REST endpoints:
+Run the test suite with `pytest`:
 
 ```bash
 pytest -v tests/
 ```
 
 Test coverage includes:
-- **`tests/test_pipeline.py`**: Synthetic data distributions, column transformations, training consistency, and SHAP attribution shapes.
-- **`tests/test_api.py`**: Integration tests across `/health` and `/predict`, testing high-risk profiles, low-risk profiles, and Pydantic validation edge cases (`422 Unprocessable Entity`).
+- **`tests/test_pipeline.py`**: Dataset generation distribution, transformer validation, training pipeline output, SHAP matrix shape and properties.
+- **`tests/test_api.py`**: Endpoint integration tests for `/health`, `/predict` across high-risk, low-risk, and invalid payload scenarios (`422 Unprocessable Entity`).
 
 ---
 
-## 🐳 Docker & Cloud Deployment (Dokploy)
+## 🐳 Containerization & Deployment
 
-### Build & Run with Docker
+### Build and Run with Docker
 
 ```bash
-# Build Docker image
+# Build image
 docker build -t explainable-churn-api:latest .
 
-# Run container exposing port 8000
+# Run container
 docker run -d -p 8000:8000 --name explainable-churn-api explainable-churn-api:latest
 ```
 
-### Run with Docker Compose
+### Docker Compose
 
 ```bash
 docker compose up --build -d
 ```
 
-### Deploying on Dokploy
-1. Create a new Application on your **Dokploy** instance.
-2. Link your GitHub repository (`Falassio/Expl_Cust_Ret_Churn_API`).
-3. Set **Build Type** to `Dockerfile` (or `Docker Compose`).
-4. Set **Port** to `8000`.
-5. Configure Health Check Path to `/health`.
-6. Enable automatic deployments on branch `main`.
+### Deployment on Dokploy
+1. Create a new Application inside your Dokploy dashboard.
+2. Link the repository (`Falassio/Expl_Cust_Ret_Churn_API`).
+3. Set **Build Type** to `Dockerfile`.
+4. Configure port `8000` and healthcheck path `/health`.
+5. Automatic builds will trigger on pushes to the `main` branch.
+
+---
+
+## 💼 Technical Interview & Design Rationales
+
+1. **Why SHAP TreeExplainer over KernelExplainer or LIME?**  
+   * TreeExplainer leverages the internal tree structures of LightGBM to compute exact Shapley values in polynomial time $\mathcal{O}(TLD^2)$, achieving single-digit millisecond latency at inference time. KernelExplainer and LIME rely on sampling heuristics and are too slow for synchronous online APIs.
+2. **How is data leakage prevented?**  
+   * Preprocessing parameters (such as `StandardScaler` mean/variance and `OneHotEncoder` categories) are strictly fitted on the training split inside a Scikit-learn pipeline and serialized to disk. The API only applies `.transform()`, ensuring zero test/serving leakage.
+3. **Why LightGBM for tabular customer retention?**  
+   * Tree-based gradient boosting consistently outperforms deep learning on tabular data with mixed continuous/categorical features, handles non-linear boundaries gracefully, and natively integrates with tree-based explainability frameworks.
 
 ---
 
